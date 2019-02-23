@@ -5,9 +5,15 @@
 //initial score values
 var score = 0;
 var tries = 0;
-var playLevel = 0;
-var maxLevel = 36;
-var minHighScore = 20;
+
+var maxLevel = 5; //5 default
+/*var minHighScore = 10; //10 default*/
+
+var playLevel = 1;
+
+var combinations = 36;
+
+var cardsrow = 4;
 
 //Card object
 function Card(suit, rank, cardImage){
@@ -90,10 +96,14 @@ var cardId = 0; //current card id to be compared
 // FUNCTIONS
 
 var checkForMatch = function(){
-	if(cardsInPlay[0]===cardsInPlay[1] || (cardsInPlay.length===4 && (cardsInPlay[2]===cardsInPlay[3])) ) {
+	var cid = cardsInPlay.length - 1;
+	if( cardsInPlay[cid]===cardsInPlay[cid-1]  ) {
 			score++; //increase score
 			//console.log("Score=" + score); //debug
-			alert("You found a match! That's 1 point.");
+			alert("You found a match!");
+
+			//realtime
+			//document.getElementById("button3").innerHTML = "Check Status, Score[" + score + "]";
 		} else {
 			tries++; //unmatched turn
 			alert("Sorry, TRY Again. TIP: Remember the cards' position.");
@@ -104,25 +114,54 @@ var checkForMatch = function(){
 };
 
 var levelUp = function(){
-	var level = 1;
+	var level = playLevel;
 	var msg = "";
 
-	if(score%minHighScore===0) {
-		level = level * (score/minHighScore);
+	/*if(score%minHighScore===0) {
+		level = level * (score/minHighScore);*/
 		msg = "Congratulations!!! You've just unlocked Level [" + level + "].";
 		
-		if (playLevel < level) playLevel = level;
-
-		if (playLevel === maxLevel) {
-			msg = msg.concat("\nWhat a feat! You are the Iron Player!")
+		//console.log("level [" + level + "], maxLevel [" + maxLevel + "]");
+		if (level <= maxLevel) {
+			var newBackgroundImage = "url('images/level" + level + ".png')";
+			//console.log("newBackgroundImage=" + newBackgroundImage); //debug
+			document.body.style.backgroundImage = newBackgroundImage;
 		}
+		
+		// add Text only once
+		/*if (level==1) {
+			var gameinfo = document.getElementById("gameinfo");
+			var oldText = gameinfo.innerHTML;
+			//console.log("gameinfo=" + gameinfo);
+			var addText = "<br><br>If you love this background, score higher to the next level to see the next surprise. ";
+			gameinfo.innerHTML = oldText + addText;
+		}*/
+		
+		//if (playLevel < level) playLevel = level;
 
 		var audio = new Audio("images/applause.mp3");
+		
+		//console.log("playLevel [" + playLevel + "], maxLevel [" + maxLevel + "]");
+		//console.log ("playLevel === maxLevel | " + (playLevel === maxLevel));
 
+		if (playLevel === maxLevel) {
+			msg = msg.concat("\nWhat a feat! You are the Winner!")
+			
+			// end game sound 
+			audio = new Audio("images/homerun.mp3"); //done with level20
+		}
+		
 		audio.play(); //applause
 		alert(msg);
-	}
-}
+
+		playLevel++;
+
+		if (playLevel<=maxLevel) {
+			resetBoard();
+			createBoard();
+		}
+	//}
+};
 
 var flipCard = function(){ //cardId){
 
@@ -171,8 +210,22 @@ var flipCard = function(){ //cardId){
 			} else {
 				//MATCHED
 				//check score if eligible for level unlock
-				if (score>=minHighScore) {
+				//if (score>=minHighScore) {
+					//levelUp();
+				//}
+
+				//console.log("score = " + score);
+				//console.log("tries = " + tries);
+				//console.log("cardsInPlay = " + cardsInPlay.length);
+
+				if (cardsInPlay.length === ((playLevel+1)*cardsrow) ) {
+					//console.log("next level");
 					levelUp();
+				}
+
+				
+				if (playLevel > maxLevel) { // END GAME
+				    processEndGame();
 				}
 			}
 		
@@ -180,6 +233,37 @@ var flipCard = function(){ //cardId){
 	}
 };
 
+function processEndGame() {
+	resetBoard();
+	
+	var divCards = document.getElementById('game-board');
+
+	var divrow = document.createElement('div');
+	divrow.setAttribute('id', "cardsrow");
+	divrow.setAttribute('class', "gameboard");
+
+	var cardElement = document.createElement('img');
+	cardElement.setAttribute('src', "images/winner.png");
+	
+	divrow.appendChild(cardElement);
+
+	divCards.appendChild(divrow);
+	
+	//leave reset button
+	
+	var pbuttons = document.getElementById("buttons"); //parent
+	
+	if (pbuttons.hasChildNodes) {
+		for (var c=1; c<5; c++) //except 5
+		{
+			var idb = "button" + c;
+			var nd = document.getElementById(idb);
+			pbuttons.removeChild(nd);
+		}
+	}
+
+	document.getElementById("button5").innerHTML = "Restart Game?";
+}
 
 function sleep( millisecondsToWait ) //allow to delay flipping card to back face
 {
@@ -199,13 +283,20 @@ var backCard = function(){
 
 		//flip remaining card to back face
 		//get all images in the document
-		var images = document.body.getElementsByTagName("img");
-		
+		var images = //document.body.getElementsByTagName("img");
+			document.body.getElementsByClassName("boardimgs");
+		//console.log("cards in play = " + cardsInPlay);
+		//console.log(images);
+		//console.log("cardIds = " + cardIds);
+
+		var cid = cardsInPlay.length - 1;
+		//console.log("last card = " + cardIds[cid]);
+
 		for ( var m = 0; m < images.length; m++ ) {
 			var did = images[m].getAttribute("data-id");
 			//console.log(did); //debug
 
-			if (did === cardIds[0]) { //compare to remaining card
+			if (did === cardIds[cid]) { //compare to remaining card
 				images[m].setAttribute('src', "images/back.png"); 
 				cardsInPlay.pop(); //allow reset
 				cardIds.pop(); //allow reset
@@ -215,37 +306,157 @@ var backCard = function(){
 	}
 };
 
+function getCustom(){
+	var x = window.location.href;
+	//console.log("form: " + x); //debug
+
+  	//minHiScore=2&gameLevel=2 //sample
+  	if (x.includes("index.html?")) {
+  		var customvals = x.split("?")[1];
+  		//console.log(customvals); //debug
+
+  		//var custvals = [];
+  		//if (customvals.includes("&")) {
+  			//custvals = customvals.split("&");
+  			//console.log(custvals); //debug
+
+  			//if (custvals.length>0) {
+  				//var minScore = parseInt(custvals[0].split("=")[1]);
+  				//console.log(minScore); //debug
+
+  				var gameLevel = parseInt(customvals.split("=")[1]);
+  				//console.log(gameLevel); //debug
+
+  				//if (minScore>0 && minScore!==minHighScore) { //cannot be negative or 0
+  				//	minHighScore = minScore;
+  				//}
+
+  				//if (gameLevel>0 && gameLevel<=maxLevel) { //cannot be less 0 or more than 20
+  					maxLevel = gameLevel;
+  				//}
+
+   			//}
+  		//}
+  	}
+
+  	//console.log("Using custom values: minHighScore[" + minHighScore + "], maxLevel[" + maxLevel + "]")
+
+}
 
 var createBoard = function(){
 
+	//setup if custom was called
+	getCustom();
+
+	//console.log("createBoard level = " + playLevel);
+	var level = playLevel;
+
 	//random selection of cards combination
-	var rid = Math.floor(Math.random() * 36);     //returns a random integer from 0 to 35
+	var rid = new Array(level+1); //Math.floor(Math.random() * combinations);     //returns a random integer from 0 to 35
 	//console.log("randomChoice[" + rid + "]"); //debug
 
-	for (var iid = 1; iid < 5; iid++) { //index needed
-	//for (var ccard of cards) { //can use this if index not needed
-		var cardElement = document.createElement('img');
-		cardElement.setAttribute('src', "images/back.png"); //ccard.cardImage);
-		var imgCardId = "imgCardId" + iid;
-		cardElement.setAttribute('id', imgCardId);
-		cardElement.setAttribute('data-id', iid);
-		cardElement.addEventListener('click', flipCard); //listener for flipping to card image
-		cardElement.addEventListener('mouseout', backCard); //listener for flip[ping to back face
-		var divCards = document.getElementById('game-board');
-		divCards.appendChild(cardElement);
-		//iid++; //if index not needed
+	///// 
 
-		//setup cards[] from random selection
-		var ridd = iid-1;
-		cards.push(randomChoices[rid][ridd]); 
-		//important to use push, error at runtime (multiple play again) if not
+	var ran1 = Math.floor(Math.random() * combinations); 
+
+	if (level>=1) {
+		var ran2 = ran1;
+		// run this loop until ran1 is different than ran2
+		do {
+	    	ran2 = Math.floor(Math.random() * combinations);
+		} while(ran1 === ran2);
+		rid[0] = ran1;
+		rid[1] = ran2;
 	}
+	
+	if (level>=2) {
+		var ran3 = ran2; 
+		// run this loop until ran3 is different than ran1 and ran2
+		do {
+    		ran3 = Math.floor(Math.random() * combinations);
+		} while(ran3 === ran2 || ran3 === ran1);
+		rid[2] = ran3;
+	}
+
+	if (level>=3) {
+		var ran4 = ran3; 
+		// same logic
+		do {
+    		ran4 = Math.floor(Math.random() * combinations);
+		} while(ran4 === ran3 || ran4 === ran2 || ran4 === ran1);
+		rid[3] = ran4;
+	}
+
+	if (level>=4) {
+		var ran5 = ran4; 
+		// same logic
+		do {
+    		ran5 = Math.floor(Math.random() * combinations);
+		} while(ran5 === ran4 || ran5 === ran3 || ran5 === ran2 || ran5 === ran1);
+		rid[4] = ran5;
+	}
+
+	if (level===5) {
+		var ran6 = ran5; 
+		// same logic
+		do {
+    		ran6 = Math.floor(Math.random() * combinations);
+		} while(ran6 === ran5 || ran6 === ran4 || ran6 === ran3 || ran6 === ran2 || ran6 === ran1);
+		rid[5] = ran6;
+	}
+
+	//console.log(rid);
+	/////
+
+
+	var divCards = document.getElementById('game-board');
+
+	//var br = document.createElement('br');
+	//br.setAttribute('id', "rowbr");
+		
+	for (var l=1; l<=rid.length; l++) {
+		var divrow = document.createElement('div');
+		var rowid = "cardrow" + l
+		divrow.setAttribute('id', rowid);
+		divrow.setAttribute('class', "gameboard");
+		divCards.appendChild(divrow);
+
+
+		for ( var iid = 1; iid<=cardsrow; iid++) { //index needed
+		//for (var ccard of cards) { //can use this if index not needed
+			var cardElement = document.createElement('img');
+			cardElement.setAttribute('src', "images/back.png"); 
+			
+			var imgCardId = "imgCardId" + (l>1 ? iid + cardsrow*(l-1) : iid );
+			cardElement.setAttribute('id', imgCardId);
+			var imgId = "" + (l>1 ? iid + cardsrow*(l-1) : iid )
+			cardElement.setAttribute('data-id', imgId);
+			cardElement.setAttribute('class', "boardimgs");
+			cardElement.addEventListener('click', flipCard); //listener for flipping to card image
+			cardElement.addEventListener('mouseout', backCard); //listener for flip[ping to back face
+			//var divCards = document.getElementById('game-board');
+			//console.log("add card");
+			divrow.appendChild(cardElement);
+			//iid++; //if index not needed
+
+			//setup cards[] from random selection
+			var ridd = iid-1;
+			var ridin = rid[l-1];
+			//console.log("ridin = " + ridin);
+			//console.log("randomChoices = " + randomChoices[ridin][ridd]);
+			cards.push(randomChoices[ridin][ridd]); 
+			//important to use push, error at runtime (multiple play again) if not
+		}
+
+	}
+
+	//console.log(divCards);
 };
 
 createBoard();
 
 function showScore() {
-	var msg = "Score is [" + score + "] with [" + tries + "] wrong move" + (tries>1 ? "s." : ".") ;
+	/*var msg = "Score is [" + score + "] with [" + tries + "] wrong move" + (tries>1 ? "s." : ".") ;
 
 	if (score>0) {
 		if (score>tries) { msg = msg.concat("\nGood Job! Now, go score some more..."); }
@@ -253,26 +464,35 @@ function showScore() {
 		else { msg = msg.concat("\nNot bad, but you can do better. Eh?"); }
 
 		if (playLevel>0) {
-			msg = msg.concat("\n\nLevel Unlocked: [" + playLevel + "]");
+			msg = msg.concat("\n\nLevel Unlocked [" + playLevel + "]");
 		}
 	} else {
 		msg = msg.concat("\nYour turn, mate! Game face on now...");
 	}
 
-	alert(msg);
+	var points = (playLevel+1)*minHighScore - score;
+	msg = msg.concat("\n\nTIP: Score " + points + " point" + (points>1 ? "s" : "") + " to unlock Level " + (playLevel+1) + ".");
+
+	alert(msg);*/
 }
 
+function playAgain() { //without reloading to allw to accumulate a higher score
+	resetBoard(); //clear board and cards storage
+	createBoard(); //setup board
+}
 
-function playAgain() { //without reloading to allow to accumulate a higher score
+function resetBoard() { //reset board, cards storage
 
-	var images = document.body.getElementsByTagName("img");
+	var images = //document.body.getElementsByTagName("img");
+		document.body.getElementsByClassName("boardimgs");
 	//console.log("images" + images); //debug
 
+	var len = images.length;
 	//clear the card images display to allow for new combination
 	if (images.length>0) {
 		var pNode = images[0].parentNode;
 
-		for (var iid = 1; iid < 5; iid++) {
+		for (var iid = 1; iid <= len; iid++) {
 			var imgCardId = "imgCardId" + iid;
 			var elem = document.getElementById(imgCardId);
 			var pNode = elem.parentNode;
@@ -281,6 +501,21 @@ function playAgain() { //without reloading to allow to accumulate a higher score
 		}
 	}
 	
+	var gameboard = document.getElementById("game-board"); //parent
+
+	if (gameboard.hasChildNodes) {
+		var divs = gameboard.childNodes;
+		var len = divs.length;
+
+		for (var i=0; i< len; i++) {
+			var rowid = "cardrow" + (i+1) ;
+			var elem = document.getElementById(rowid);
+			if (elem!==null) {
+				gameboard.removeChild(elem);
+
+			}
+		}
+	}
 
 	//reset the cards storage
 	var ct = 0;
@@ -303,8 +538,6 @@ function playAgain() { //without reloading to allow to accumulate a higher score
 	//console.log(cards); //debug
 	//console.log(cardsInPlay); //debug
 	//console.log(cardIds); //debug
-	
-	createBoard();
 }
 
 function restartGame() {
